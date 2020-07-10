@@ -1,6 +1,6 @@
 from typing import Any, List, Dict
 import json
-from datetime import datetime
+import time
 
 class Settings:
     def __init__(self):
@@ -22,7 +22,7 @@ class Settings:
     def setValue(self, name: str, value: Any) -> None:
         if name not in self.values or self.values[name] != value:
             self.values[name] = value
-            self.dates[name] = int(datetime.now().timestamp() *1000)
+            self.dates[name] = time.time_ns()
         else:
             pass
 

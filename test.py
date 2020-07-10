@@ -1,3 +1,4 @@
+from typing import Any
 import os
 import sys
 import unittest
@@ -8,7 +9,7 @@ if __name__ == "__main__":
 
 from pymake import Build
 from pymake.filerules import FileTouchRule
-from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError
+from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError, NoSettingError
 
 def removeIfExists(path: str) -> None:
     if os.path.exists(path):
@@ -17,7 +18,11 @@ def removeIfExists(path: str) -> None:
 def touchFile(path: str) -> None:
     fle = open(path,'a')
     fle.close()
-    sleep(1e-3)
+    sleep(2e-3)
+
+def setSetting(build: Build, name: str, value: Any):
+    build.setSettingValue(name, value)
+    sleep(2e-3)
 
 class BuildSingeTestCase(unittest.TestCase):
     def tearDown(self):
@@ -294,7 +299,7 @@ class BuildThreeTestCase(unittest.TestCase):
         with self.assertRaises(CyclicGraphError):
             build.build('a.txt')
 
-class SeetingsTestCase(unittest.TestCase):
+class SettingsTestCase(unittest.TestCase):
     def tearDown(self):
         removeIfExists("a.txt")
         removeIfExists("b.txt")
@@ -302,8 +307,8 @@ class SeetingsTestCase(unittest.TestCase):
     def test_SettingsOlder(self):
         build = Build()
 
-        build.setSettingValue('b', 'b')
-        build.setSettingValue('a', 'a')
+        setSetting(build,'b', 'b')
+        setSetting(build,'a', 'a')
         touchFile('b.txt')
         touchFile('a.txt')
 
@@ -320,8 +325,8 @@ class SeetingsTestCase(unittest.TestCase):
     def test_SettingsOlderReorder(self):
         build = Build()
 
-        build.setSettingValue('a', 'a')
-        build.setSettingValue('b', 'b')
+        setSetting(build,'a', 'a')
+        setSetting(build,'b', 'b')
         touchFile('b.txt')
         touchFile('a.txt')
 
@@ -338,10 +343,10 @@ class SeetingsTestCase(unittest.TestCase):
     def test_BottomSettingNewer(self):
         build = Build()
 
-        build.setSettingValue('a', 'a')
+        setSetting(build,'a', 'a')
         touchFile('b.txt')
         touchFile('a.txt')
-        build.setSettingValue('b', 'b')
+        setSetting(build,'b', 'b')
 
         a = build.createRule('a.txt', FileTouchRule)
         a.addPrerequisite('b.txt')
@@ -356,10 +361,10 @@ class SeetingsTestCase(unittest.TestCase):
     def test_TopSettingNewer(self):
         build = Build()
 
-        build.setSettingValue('b', 'b')
+        setSetting(build,'b', 'b')
         touchFile('b.txt')
         touchFile('a.txt')
-        build.setSettingValue('a', 'a')
+        setSetting(build,'a', 'a')
 
         a = build.createRule('a.txt', FileTouchRule)
         a.addPrerequisite('b.txt')
@@ -374,11 +379,11 @@ class SeetingsTestCase(unittest.TestCase):
     def test_TopSettingReset(self):
         build = Build()
 
-        build.setSettingValue('a', 'a')
-        build.setSettingValue('b', 'b')
+        setSetting(build,'b', 'b')
+        setSetting(build,'a', 'a')
         touchFile('b.txt')
         touchFile('a.txt')
-        build.setSettingValue('a', 'changed')
+        setSetting(build,'a', 'changed')
 
         a = build.createRule('a.txt', FileTouchRule)
         a.addPrerequisite('b.txt')
@@ -393,11 +398,11 @@ class SeetingsTestCase(unittest.TestCase):
     def test_TopSettingResetUnchanged(self):
         build = Build()
 
-        build.setSettingValue('a', 'a')
-        build.setSettingValue('b', 'b')
+        setSetting(build,'b', 'b')
+        setSetting(build,'a', 'a')
         touchFile('b.txt')
         touchFile('a.txt')
-        build.setSettingValue('a', 'a')
+        setSetting(build,'a', 'a')
 
         a = build.createRule('a.txt', FileTouchRule)
         a.addPrerequisite('b.txt')
@@ -408,6 +413,23 @@ class SeetingsTestCase(unittest.TestCase):
 
         build.build('a.txt')
         self.assertListEqual(build.trace, [])
+
+    def test_NoSettingDefined(self):
+        build = Build()
+
+        setSetting(build,'b', 'b')
+        touchFile('b.txt')
+        touchFile('a.txt')
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addSetting('a')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addSetting('b')
+
+        with self.assertRaises(NoSettingError):
+            build.build('a.txt')
 
 
 if __name__ == "__main__":

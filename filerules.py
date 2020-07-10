@@ -17,7 +17,7 @@ class FileExistsRule(BaseRule):
     def getLastBuildTime(self) -> int:
         if not self.exists():
             return -1
-        return  modtime(self.name)
+        return modtime(self.name)
 
 class FileTouchRule(FileExistsRule):
 

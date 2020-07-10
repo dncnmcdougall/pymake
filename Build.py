@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Tuple
 from pymake.BaseRule import BaseRule
-from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError
+from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError, NoSettingError
 from pymake.Settings import Settings
 
 Rule = Any
@@ -61,6 +61,15 @@ class Build:
             last_build_time = rule.getLastBuildTime()
             self.build_tree[target]['last_build_time'] = last_build_time
 
+        for setting in rule.getSettings():
+            if not self.settings.exists(setting):
+                raise NoSettingError(setting)
+            elif last_build_time < self.settings.getLastBuildTime(setting):
+                needs_to_build = True
+                self.build_tree[target]['needs_to_build'] = True
+                # Don't return from here as the whole dependency graph needs to be built up.
+                break
+
         if len(prerequisites) == 0:
             return (needs_to_build, last_build_time)
 
@@ -68,18 +77,11 @@ class Build:
         prerequisite_build_path = [*build_path, target]
         for dep in prerequisites:
             (dep_needs_to_build, dep_last_build_time) = self.computeBuildSubGraph(dep, prerequisite_build_path)
-            if dep_needs_to_build:
-                needs_to_build = True
-            else:
-                prerequisite_build_times.append( dep_last_build_time)
-
-        if needs_to_build:
-            self.build_tree[target]['needs_to_build'] = True
-        else:
-            max_prerequisite_build_time = max(prerequisite_build_times)
-            if last_build_time < max_prerequisite_build_time:
+            if dep_needs_to_build or last_build_time < dep_last_build_time:
                 needs_to_build = True
                 self.build_tree[target]['needs_to_build'] = True
+                # Don't break here as the loop has to run all the dependencies through the recurcive call.
+
         return (needs_to_build, last_build_time)
 
     def findNextBuildTargets(self):
