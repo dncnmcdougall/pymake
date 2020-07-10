@@ -1,5 +1,5 @@
 import os
-from typing import List, Callable
+from typing import List, Callable, Union, Dict, Any
 
 from pymake.builderrors import BuildError
 
@@ -8,7 +8,8 @@ class BaseRule:
     def __init__(self, name):
 
         self.name = name
-        self.prerequisites = []
+        self.prerequisites: List[str] = []
+        self.settings: List[str] = []
 
         self.force_rebuild = False
 
@@ -21,8 +22,17 @@ class BaseRule:
     def forceRebuild(self):
         return self.force_rebuild
 
-    def addPrerequisite(self, prerequisite: str) -> None:
-        self.prerequisites.append( prerequisite )
+    def addSetting(self, setting: str) -> None:
+        self.settings.append(setting)
+
+    def getSettings(self) -> List[str]:
+        return self.settings
+
+    def addPrerequisite(self, prerequisite: Union["BaseRule", str]) -> None:
+        if isinstance(prerequisite, str):
+            self.prerequisites.append( prerequisite )
+        else:
+            self.prerequisites.append( prerequisite.name )
 
     def getPrerequisites(self) -> List[str]:
         return self.prerequisites
@@ -33,5 +43,5 @@ class BaseRule:
     def getLastBuildTime(self) -> int:
         return -1
 
-    def build(self) -> None:
+    def build(self, settings_values: Dict[str, Any]) -> None:
         raise BuildError("Cannot build %s." % self.name)

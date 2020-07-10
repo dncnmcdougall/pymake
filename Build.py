@@ -1,19 +1,21 @@
 from typing import List, Dict, Any, Tuple
-from pymake import BaseRule
+from pymake.BaseRule import BaseRule
 from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError
+from pymake.Settings import Settings
 
 Rule = Any
 
 class Build:
-
     def __init__(self):
-
         self.print_build = False
         self.rules = {}
+        self.settings = Settings()
         self.trace = []
         self.build_tree = {}
         self.built_rules = set()
 
+    def setSettingValue(self, name: str, value: Any) -> None:
+        self.settings.setValue(name, value)
 
     def createRule(self, name: str, rule_type = BaseRule) -> Rule:
         new_rule = rule_type(name)
@@ -113,7 +115,8 @@ class Build:
                 try:
                     if self.print_build:
                         print('Starting %s' % leaf)
-                    self.rules[leaf].build()
+                    settings_values = self.settings.getValuesForNames(self.rules[leaf].getSettings())
+                    self.rules[leaf].build(settings_values)
                     if self.print_build:
                         print('  done')
                 except:

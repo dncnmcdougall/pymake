@@ -1,5 +1,5 @@
 import os
-from typing import List, Callable
+from typing import List, Callable, Dict, Any
 
 from pymake.BaseRule import BaseRule
 
@@ -24,7 +24,7 @@ class FileTouchRule(FileExistsRule):
     def __init__(self, name):
         BaseRule.__init__(self, name)
 
-    def build(self) -> None:
+    def build(self, settings_values: Dict[str, Any]) -> None:
         try:
             fle = open(self.name,'a')
             fle.close()
@@ -40,7 +40,7 @@ class GenericFileRule(FileTouchRule):
     def setRecipe(self, recipe: Callable[[str, List[str]], None]) -> None:
         self.recipe = recipe
 
-    def build(self) -> None:
+    def build(self, settings_values: Dict[str, Any]) -> None:
         try:
             self.recipe(self.name, self.prerequisites)
             assert self.exists()

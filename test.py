@@ -20,7 +20,6 @@ def touchFile(path: str) -> None:
     sleep(1e-3)
 
 class BuildSingeTestCase(unittest.TestCase):
-
     def tearDown(self):
         removeIfExists("a.txt")
 
@@ -55,9 +54,7 @@ class BuildSingeTestCase(unittest.TestCase):
         with self.assertRaises(DuplicateRuleError):
             build.createRule('a.txt', FileTouchRule)
 
-
 class BuildTwoTestCase(unittest.TestCase):
-
     def tearDown(self):
         removeIfExists("a.txt")
         removeIfExists("b.txt")
@@ -157,7 +154,6 @@ class BuildTwoTestCase(unittest.TestCase):
             build.build('a.txt')
 
 class BuildThreeTestCase(unittest.TestCase):
-
     def tearDown(self):
         removeIfExists("a.txt")
         removeIfExists("b.txt")
@@ -297,6 +293,121 @@ class BuildThreeTestCase(unittest.TestCase):
 
         with self.assertRaises(CyclicGraphError):
             build.build('a.txt')
+
+class SeetingsTestCase(unittest.TestCase):
+    def tearDown(self):
+        removeIfExists("a.txt")
+        removeIfExists("b.txt")
+
+    def test_SettingsOlder(self):
+        build = Build()
+
+        build.setSettingValue('b', 'b')
+        build.setSettingValue('a', 'a')
+        touchFile('b.txt')
+        touchFile('a.txt')
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addSetting('a')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addSetting('b')
+
+        build.build('a.txt')
+        self.assertListEqual(build.trace, [])
+
+    def test_SettingsOlderReorder(self):
+        build = Build()
+
+        build.setSettingValue('a', 'a')
+        build.setSettingValue('b', 'b')
+        touchFile('b.txt')
+        touchFile('a.txt')
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addSetting('a')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addSetting('b')
+
+        build.build('a.txt')
+        self.assertListEqual(build.trace, [])
+
+    def test_BottomSettingNewer(self):
+        build = Build()
+
+        build.setSettingValue('a', 'a')
+        touchFile('b.txt')
+        touchFile('a.txt')
+        build.setSettingValue('b', 'b')
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addSetting('a')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addSetting('b')
+
+        build.build('a.txt')
+        self.assertListEqual(build.trace, [['b.txt'], ['a.txt']])
+
+    def test_TopSettingNewer(self):
+        build = Build()
+
+        build.setSettingValue('b', 'b')
+        touchFile('b.txt')
+        touchFile('a.txt')
+        build.setSettingValue('a', 'a')
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addSetting('a')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addSetting('b')
+
+        build.build('a.txt')
+        self.assertListEqual(build.trace, [['a.txt']])
+
+    def test_TopSettingReset(self):
+        build = Build()
+
+        build.setSettingValue('a', 'a')
+        build.setSettingValue('b', 'b')
+        touchFile('b.txt')
+        touchFile('a.txt')
+        build.setSettingValue('a', 'changed')
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addSetting('a')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addSetting('b')
+
+        build.build('a.txt')
+        self.assertListEqual(build.trace, [['a.txt']])
+
+    def test_TopSettingResetUnchanged(self):
+        build = Build()
+
+        build.setSettingValue('a', 'a')
+        build.setSettingValue('b', 'b')
+        touchFile('b.txt')
+        touchFile('a.txt')
+        build.setSettingValue('a', 'a')
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addSetting('a')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addSetting('b')
+
+        build.build('a.txt')
+        self.assertListEqual(build.trace, [])
 
 
 if __name__ == "__main__":

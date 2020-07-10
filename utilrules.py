@@ -1,5 +1,5 @@
 import os
-from typing import List, Callable
+from typing import List, Dict, Any
 
 from pymake.BaseRule import BaseRule
 
@@ -10,5 +10,5 @@ class PhoneyRule(BaseRule):
     def exists(self) -> bool:
         return False
 
-    def build(self) -> None:
+    def build(self, settings_values: Dict[str, Any]) -> None:
         pass
