@@ -5,7 +5,6 @@ class BuildError(Exception):
 class DuplicateRuleError(Exception):
     def __init__(self, target):
         Exception.__init__(self, "Trying to add a duplicate rule: %s." % target)
-    pass
 
 class NoRuleError(Exception):
     def __init__(self, target):
@@ -18,4 +17,3 @@ class CyclicGraphError(Exception):
 class NoSettingError(Exception):
     def __init__(self, setting):
         Exception.__init__(self, "No setting named %s." % setting)
-    pass

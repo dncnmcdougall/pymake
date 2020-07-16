@@ -42,7 +42,7 @@ class GenericFileRule(FileTouchRule):
 
     def build(self, settings_values: Dict[str, Any]) -> None:
         try:
-            self.recipe(self.name, self.prerequisites)
-            assert self.exists()
+            self.recipe(self.name, self.prerequisites, settings_values)
+            assert self.exists(), 'The file %s should exist after the rule ran.' % self.name
         except:
             raise

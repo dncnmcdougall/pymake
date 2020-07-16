@@ -2,6 +2,10 @@ from typing import Any, List, Dict
 import json
 import time
 
+class SettingNotFoundError(Exception):
+    def __init__(self, setting):
+        Exception.__init__(self, "Could not find a value for setting %s." % setting)
+
 class Settings:
     def __init__(self):
         self.values = {}
@@ -27,7 +31,8 @@ class Settings:
             pass
 
     def getSettingValue(self, name: str) -> Any:
-        assert name in self.values
+        if name not in self.values:
+            raise SettingNotFoundError(name)
         return self.values[name]
 
     def getValuesForNames(self, names: List[str]) -> Dict[str, Any]:

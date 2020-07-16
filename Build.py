@@ -17,6 +17,12 @@ class Build:
     def setSettingValue(self, name: str, value: Any) -> None:
         self.settings.setValue(name, value)
 
+    def loadSettings(self, filename: str) -> None:
+        self.settings.deserialise(filename)
+
+    def saveSettings(self, filename: str) -> None:
+        self.settings.serialise(filename)
+
     def createRule(self, name: str, rule_type = BaseRule) -> Rule:
         new_rule = rule_type(name)
         if name in self.rules:
