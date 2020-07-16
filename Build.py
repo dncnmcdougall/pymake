@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Callable, Optional
 from pymake.BaseRule import BaseRule
 from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError, NoSettingError
 from pymake.Settings import Settings
@@ -133,4 +133,36 @@ class Build:
                 self.built_rules.add(leaf)
                 self.trace[-1].append(leaf)
             leaves = self.findNextBuildTargets()
+
+    def drawGraph(self, file_name: str, rename_func: Optional[Callable[[str], str]] = None ) -> None:
+        lines = []
+        lines.append('digraph build_tree {')
+        lines.append('graph [rankdir="LR"]')
+        ids = {'_last_id': 1}
+
+        def findOrInsert(name: str, ids: Dict[str,int]) -> int:
+            if name in ids:
+                return ids[name]
+            last_id = ids['_last_id']
+            last_id += 1
+            ids[name] = last_id
+            ids['_last_id'] = last_id
+            return last_id
+
+        for target, details in self.build_tree.items():
+            tgt_id = findOrInsert(target, ids)
+            if rename_func is not None:
+                tgt_name = rename_func(target)
+
+            lines.append('node_%s [label="%s"]' % (tgt_id, tgt_name))
+
+            for dep in details['prerequisites']:
+                dep_id = findOrInsert(dep, ids)
+                lines.append('node_%s -> node_%s' % (dep_id, tgt_id))
+
+        lines.append('}')
+
+        with open(file_name, 'w') as fle:
+            for line in lines:
+                fle.write(line+'\n')
 
