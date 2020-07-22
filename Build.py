@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import List, Dict, Any, Tuple, Callable, Optional
+
 from pymake.BaseRule import BaseRule
 from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError, NoSettingError
 from pymake.Settings import Settings
@@ -122,11 +124,19 @@ class Build:
             for leaf in leaves:
                 try:
                     if self.print_build:
-                        print('Starting %s' % leaf)
+                        start_time = datetime.now()
+                        print('Starting "%s" at %s' % (leaf, start_time))
                     settings_values = self.settings.getValuesForNames(self.rules[leaf].getSettings())
-                    self.rules[leaf].build(settings_values)
-                    if self.print_build:
-                        print('  done')
+                    try:
+                        self.rules[leaf].build(settings_values)
+                        if self.print_build:
+                            end_time = datetime.now()
+                            print('    done "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
+                    except:
+                        if self.print_build:
+                            end_time = datetime.now()
+                            print('    failed "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
+                        raise
                 except:
                     raise
 

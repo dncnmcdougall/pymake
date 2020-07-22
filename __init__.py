@@ -5,4 +5,4 @@ from . import utilrules
 from .BaseRule import BaseRule
 from .Settings import Settings
 
-__all__ = ['Build', 'BaseRule', 'Settings', 'builderror', 'filerules', 'utilrules']
+__all__ = ['Build', 'BaseRule', 'Settings', 'builderrors', 'filerules', 'utilrules']
