@@ -15,6 +15,8 @@ class Build:
         self.trace = []
         self.build_tree = {}
         self.built_rules = set()
+        self.dot_file_name = None
+        self.dot_rename_func = None
 
     def setSettingValue(self, name: str, value: Any) -> None:
         self.settings.setValue(name, value)
@@ -32,8 +34,13 @@ class Build:
 
         self.rules[name] = new_rule 
         return new_rule
+
+    def setDotGraphOptions(self, file_name: str, rename_func: Optional[Callable[[str], str]] = None ) -> None:
+        self.dot_file_name = file_name
+        self.dot_rename_func = rename_func
+
     
-    def computeBuildSubGraph(self, target: str, build_path: List[str] ) -> Tuple[bool, int]:
+    def _computeBuildSubGraph(self, target: str, build_path: List[str] ) -> Tuple[bool, int]:
         if not target in self.rules:
             raise NoRuleError(target)
         if target in build_path:
@@ -84,7 +91,7 @@ class Build:
         prerequisite_build_times: List[int] = []
         prerequisite_build_path = [*build_path, target]
         for dep in prerequisites:
-            (dep_needs_to_build, dep_last_build_time) = self.computeBuildSubGraph(dep, prerequisite_build_path)
+            (dep_needs_to_build, dep_last_build_time) = self._computeBuildSubGraph(dep, prerequisite_build_path)
             if dep_needs_to_build or last_build_time < dep_last_build_time:
                 needs_to_build = True
                 self.build_tree[target]['needs_to_build'] = True
@@ -92,7 +99,7 @@ class Build:
 
         return (needs_to_build, last_build_time)
 
-    def findNextBuildTargets(self):
+    def _findNextBuildTargets(self):
         leaves = []
         for target, details in self.build_tree.items():
             if target in self.built_rules:
@@ -109,7 +116,10 @@ class Build:
         self.built_rules.clear()
         self.trace=[]
 
-        self.computeBuildSubGraph(target, [])
+        self._computeBuildSubGraph(target, [])
+
+        if self.dot_file_name is not None:
+            self._drawGraph()
 
         for target, details in self.build_tree.items():
             if target in self.built_rules:
@@ -117,7 +127,7 @@ class Build:
             elif not details['needs_to_build']:
                 self.built_rules.add(target)
 
-        leaves = self.findNextBuildTargets()
+        leaves = self._findNextBuildTargets()
 
         while len(leaves) > 0 :
             self.trace.append([])
@@ -142,9 +152,9 @@ class Build:
 
                 self.built_rules.add(leaf)
                 self.trace[-1].append(leaf)
-            leaves = self.findNextBuildTargets()
+            leaves = self._findNextBuildTargets()
 
-    def drawGraph(self, file_name: str, rename_func: Optional[Callable[[str], str]] = None ) -> None:
+    def _drawGraph(self) -> None:
         lines = []
         lines.append('digraph build_tree {')
         lines.append('graph [rankdir="LR"]')
@@ -161,18 +171,20 @@ class Build:
 
         for target, details in self.build_tree.items():
             tgt_id = findOrInsert(target, ids)
-            if rename_func is not None:
-                tgt_name = rename_func(target)
+            if self.dot_rename_func is not None:
+                tgt_name = self.dot_rename_func(target)
 
-            lines.append('node_%s [label="%s"]' % (tgt_id, tgt_name))
+            if tgt_name is not None:
+                lines.append('node_%s [label="%s"]' % (tgt_id, tgt_name))
 
-            for dep in details['prerequisites']:
-                dep_id = findOrInsert(dep, ids)
-                lines.append('node_%s -> node_%s' % (dep_id, tgt_id))
+                for dep in details['prerequisites']:
+                    dep_id = findOrInsert(dep, ids)
+                    if dep_id is not None:
+                        lines.append('node_%s -> node_%s' % (dep_id, tgt_id))
 
         lines.append('}')
 
-        with open(file_name, 'w') as fle:
+        with open(self.dot_file_name, 'w') as fle:
             for line in lines:
                 fle.write(line+'\n')
 
