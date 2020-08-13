@@ -10,6 +10,7 @@ Rule = Any
 class Build:
     def __init__(self):
         self.print_build = False
+        self.colour_print_build = False
         self.rules = {}
         self.settings = Settings()
         self.trace = []
@@ -17,6 +18,23 @@ class Build:
         self.built_rules = set()
         self.dot_file_name = None
         self.dot_rename_func = None
+
+    def _print(self, colour, *strings):
+        if not self.print_build:
+            return 
+        if not self.colour_print_build:
+            print(*strings)
+            return
+        if colour == 'r':
+            print('\033[91m', end=None)
+        elif colour == 'g':
+            print('\033[92m', end=None)
+        elif colour == 'y':
+            print('\033[93m', end=None)
+        elif colour == 'b':
+            print('\033[94m', end=None)
+        print(*strings)
+        print('\033[0m', end=None)
 
     def setSettingValue(self, name: str, value: Any) -> None:
         self.settings.setValue(name, value)
@@ -133,19 +151,16 @@ class Build:
             self.trace.append([])
             for leaf in leaves:
                 try:
-                    if self.print_build:
-                        start_time = datetime.now()
-                        print('Starting "%s" at %s' % (leaf, start_time))
+                    start_time = datetime.now()
+                    self._print('b', 'Starting "%s" at %s' % (leaf, start_time))
                     settings_values = self.settings.getValuesForNames(self.rules[leaf].getSettings())
                     try:
                         self.rules[leaf].build(settings_values)
-                        if self.print_build:
-                            end_time = datetime.now()
-                            print('    done "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
+                        end_time = datetime.now()
+                        self._print('g', '    done "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
                     except:
-                        if self.print_build:
-                            end_time = datetime.now()
-                            print('    failed "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
+                        end_time = datetime.now()
+                        self._print('r', '    failed "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
                         raise
                 except:
                     raise
