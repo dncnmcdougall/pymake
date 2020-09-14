@@ -6,6 +6,7 @@ from pymake.builderrors import BuildError
 class BaseRule:
 
     def __init__(self, names):
+        assert len(names) >= 1, 'At least one target must be specified.'
 
         self.names = names
         self.prerequisites: List[str] = []
