@@ -11,6 +11,12 @@ from pymake import Build
 from pymake.filerules import FileTouchRule
 from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError, NoSettingError
 
+def sortBuildTrace(build_tree):
+    for build_step in build_tree:
+        build_step.sort()
+    return build_tree
+
+
 def removeIfExists(path: str) -> None:
     if os.path.exists(path):
         os.remove(path)
@@ -430,6 +436,39 @@ class SettingsTestCase(unittest.TestCase):
 
         with self.assertRaises(NoSettingError):
             build.build('a.txt')
+
+class MultipleTargetTestCase(unittest.TestCase):
+    def tearDown(self):
+        removeIfExists("a.txt")
+        removeIfExists("b.txt")
+        removeIfExists("c.txt")
+        removeIfExists("d.txt")
+
+    def test_MultipleDependants(self):
+        build = Build()
+
+        a = build.createRule('a.txt', FileTouchRule)
+        a.addPrerequisite('b.txt')
+        a.addPrerequisite('c.txt')
+
+        b = build.createRule('b.txt', FileTouchRule)
+        b.addPrerequisite('d.txt')
+
+        cd = build.createRule(['c.txt', 'd.txt'], FileTouchRule)
+
+        build.build('a.txt')
+        self.assertListEqual(sortBuildTrace(build.trace), [['c.txt','d.txt'],['b.txt'],['a.txt']])
+
+    def test_MultipleTargers(self):
+        build = Build()
+
+        ab = build.createRule(['a.txt', 'b.txt'], FileTouchRule)
+        ab.addPrerequisite('c.txt')
+
+        cd = build.createRule(['c.txt', 'd.txt'], FileTouchRule)
+
+        build.build('a.txt')
+        self.assertListEqual(sortBuildTrace(build.trace), [['c.txt','d.txt'],['a.txt','b.txt']])
 
 
 if __name__ == "__main__":

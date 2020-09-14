@@ -8,33 +8,38 @@ def modtime(path):
 
 class FileExistsRule(BaseRule):
 
-    def __init__(self, name):
-        BaseRule.__init__(self, name)
+    def __init__(self, names):
+        BaseRule.__init__(self, names)
 
     def exists(self) -> bool:
-        return os.path.exists(self.name)
+        for name in self.names:
+            if not os.path.exists(name):
+                return False
+        else:
+            return True
 
     def getLastBuildTime(self) -> int:
         if not self.exists():
             return -1
-        return modtime(self.name)
+        return min([modtime(name) for name in self.names])
 
 class FileTouchRule(FileExistsRule):
 
-    def __init__(self, name):
-        BaseRule.__init__(self, name)
+    def __init__(self, names):
+        BaseRule.__init__(self, names)
 
     def build(self, settings_values: Dict[str, Any]) -> None:
         try:
-            fle = open(self.name,'a')
-            fle.close()
+            for name in self.names:
+                fle = open(name,'a')
+                fle.close()
         except:
             raise
 
 class GenericFileRule(FileTouchRule):
 
-    def __init__(self, name):
-        FileTouchRule.__init__(self, name)
+    def __init__(self, names):
+        FileTouchRule.__init__(self, names)
         self.recipy = None
 
     def setRecipe(self, recipe: Callable[[str, List[str]], None]) -> None:
@@ -42,7 +47,7 @@ class GenericFileRule(FileTouchRule):
 
     def build(self, settings_values: Dict[str, Any]) -> None:
         try:
-            self.recipe(self.name, self.prerequisites, settings_values)
+            self.recipe(self.names, self.prerequisites, settings_values)
             assert self.exists(), 'The file %s should exist after the rule ran.' % self.name
         except:
             raise

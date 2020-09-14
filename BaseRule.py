@@ -5,16 +5,19 @@ from pymake.builderrors import BuildError
 
 class BaseRule:
 
-    def __init__(self, name):
+    def __init__(self, names):
 
-        self.name = name
+        self.names = names
         self.prerequisites: List[str] = []
         self.settings: List[str] = []
 
         self.force_rebuild = False
 
     def __str__(self) -> str:
-        return "Rule[ %s: %s]" % ( ', '.join(self.name), ', '.join(self.prerequisites))
+        if len(self.prerequisites) == 0:
+            return "%s" % ( ', '.join(self.names))
+        else:
+            return "%s: %s" % ( ', '.join(self.names), ', '.join(self.prerequisites))
 
     def setForceRebuild(self, force_rebuild: bool):
         self.force_rebuild = force_rebuild
@@ -32,7 +35,7 @@ class BaseRule:
         if isinstance(prerequisite, str):
             self.prerequisites.append( prerequisite )
         else:
-            self.prerequisites.append( prerequisite.name )
+            self.prerequisites.extend( prerequisite.names )
 
     def getPrerequisites(self) -> List[str]:
         return self.prerequisites
@@ -44,4 +47,4 @@ class BaseRule:
         return -1
 
     def build(self, settings_values: Dict[str, Any]) -> None:
-        raise BuildError("Cannot build %s." % self.name)
+        raise BuildError("Cannot build %s." % str(self))

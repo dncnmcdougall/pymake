@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import List, Dict, Any, Tuple, Callable, Optional
+from typing import List, Dict, Any, Tuple, Callable, Optional, Union
+from pprint import pprint
 
 from pymake.BaseRule import BaseRule
 from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError, NoSettingError
@@ -19,22 +20,22 @@ class Build:
         self.dot_file_name = None
         self.dot_rename_func = None
 
-    def _print(self, colour, *strings):
+    def _print(self, colour, *strings): 
         if not self.print_build:
             return 
         if not self.colour_print_build:
             print(*strings)
             return
         if colour == 'r':
-            print('\033[91m', end=None)
+            print('\033[91m', end='')
         elif colour == 'g':
-            print('\033[92m', end=None)
+            print('\033[92m', end='')
         elif colour == 'y':
-            print('\033[93m', end=None)
+            print('\033[93m', end='')
         elif colour == 'b':
-            print('\033[94m', end=None)
-        print(*strings)
-        print('\033[0m', end=None)
+            print('\033[94m', end='')
+        print(*strings, end='')
+        print('\033[0m')
 
     def setSettingValue(self, name: str, value: Any) -> None:
         self.settings.setValue(name, value)
@@ -45,12 +46,16 @@ class Build:
     def saveSettings(self, filename: str) -> None:
         self.settings.serialise(filename)
 
-    def createRule(self, name: str, rule_type = BaseRule) -> Rule:
-        new_rule = rule_type(name)
-        if name in self.rules:
-            raise DuplicateRuleError(name)
+    def createRule(self, names: Union[str, List[str]], rule_type = BaseRule) -> Rule:
+        if type(names) == str:
+            names = [names]
 
-        self.rules[name] = new_rule 
+        new_rule = rule_type(names)
+        for name in names:
+            if name in self.rules:
+                raise DuplicateRuleError(name)
+            self.rules[name] = new_rule 
+
         return new_rule
 
     def setDotGraphOptions(self, file_name: str, rename_func: Optional[Callable[[str], str]] = None ) -> None:
@@ -65,8 +70,8 @@ class Build:
             raise CyclicGraphError(target, build_path)
 
         if target in self.build_tree:
-            if len(build_path) > 0 :
-                self.build_tree[target]['dependants'].add(build_path[-1])
+            # if len(build_path) > 0 :
+            #     self.build_tree[target]['dependants'].add(build_path[-1])
             needs_to_build = self.build_tree[target]['needs_to_build']
             last_build_time = self.build_tree[target]['last_build_time']
             return (needs_to_build, last_build_time)
@@ -74,9 +79,9 @@ class Build:
         rule = self.rules[target]
         self.build_tree[target] = {}
 
-        self.build_tree[target]['dependants'] = set()
-        if len(build_path) > 0 :
-            self.build_tree[target]['dependants'].add(build_path[-1])
+        # self.build_tree[target]['dependants'] = set()
+        # if len(build_path) > 0 :
+        #     self.build_tree[target]['dependants'].add(build_path[-1])
 
         needs_to_build = rule.forceRebuild()
         self.build_tree[target]['needs_to_build'] = needs_to_build
@@ -104,6 +109,10 @@ class Build:
                 break
 
         if len(prerequisites) == 0:
+            for tgt in rule.names:
+                if tgt == target:
+                    continue
+                self.build_tree[tgt] = self.build_tree[target]
             return (needs_to_build, last_build_time)
 
         prerequisite_build_times: List[int] = []
@@ -115,6 +124,10 @@ class Build:
                 self.build_tree[target]['needs_to_build'] = True
                 # Don't break here as the loop has to run all the dependencies through the recurcive call.
 
+        for tgt in rule.names:
+            if tgt == target:
+                continue
+            self.build_tree[tgt] = self.build_tree[target]
         return (needs_to_build, last_build_time)
 
     def _findNextBuildTargets(self):
@@ -136,6 +149,9 @@ class Build:
 
         self._computeBuildSubGraph(target, [])
 
+        if self.print_build:
+            pprint(self.build_tree)
+
         if self.dot_file_name is not None:
             self._drawGraph()
 
@@ -151,22 +167,27 @@ class Build:
             self.trace.append([])
             for leaf in leaves:
                 try:
+                    if leaf in self.built_rules:
+                        continue
+                    rule = self.rules[leaf]
                     start_time = datetime.now()
-                    self._print('b', 'Starting "%s" at %s' % (leaf, start_time))
-                    settings_values = self.settings.getValuesForNames(self.rules[leaf].getSettings())
+                    self._print('b', 'Starting "%s" at %s' % (rule, start_time))
+                    settings_values = self.settings.getValuesForNames(rule.getSettings())
                     try:
-                        self.rules[leaf].build(settings_values)
+                        rule.build(settings_values)
                         end_time = datetime.now()
-                        self._print('g', '    done "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
+                        self._print('g', '    done "%s" at %s. Took %s' % (rule, end_time, end_time - start_time))
                     except:
                         end_time = datetime.now()
-                        self._print('r', '    failed "%s" at %s. Took %s' % (leaf, end_time, end_time - start_time))
+                        self._print('r', '    failed "%s" at %s. Took %s' % (rule, end_time, end_time - start_time))
                         raise
                 except:
                     raise
 
-                self.built_rules.add(leaf)
-                self.trace[-1].append(leaf)
+                for name in rule.names:
+                    self.built_rules.add(name)
+                # self.trace[-1].append(leaf)
+                self.trace[-1].extend(rule.names)
             leaves = self._findNextBuildTargets()
 
     def _drawGraph(self) -> None:
@@ -188,14 +209,16 @@ class Build:
             tgt_id = findOrInsert(target, ids)
             if self.dot_rename_func is not None:
                 tgt_name = self.dot_rename_func(target)
+            else:
+                tgt_name = target
 
             if tgt_name is not None:
                 lines.append('node_%s [label="%s"]' % (tgt_id, tgt_name))
 
-                for dep in details['prerequisites']:
-                    dep_id = findOrInsert(dep, ids)
-                    if dep_id is not None:
-                        lines.append('node_%s -> node_%s' % (dep_id, tgt_id))
+            for dep in details['prerequisites']:
+                dep_id = findOrInsert(dep, ids)
+                if dep_id is not None:
+                    lines.append('node_%s -> node_%s' % (dep_id, tgt_id))
 
         lines.append('}')
 
