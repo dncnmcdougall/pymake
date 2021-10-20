@@ -1,4 +1,5 @@
 import os
+import copy
 from typing import List, Callable, Dict, Any
 
 from pymake.BaseRule import BaseRule
@@ -48,9 +49,10 @@ class GenericFileRule(FileTouchRule):
     def build(self, settings_values: Dict[str, Any]) -> None:
         try:
             if len(self.names) == 1:
-                self.recipe(self.names[0], self.prerequisites, settings_values)
+                self.recipe(self.names[0], copy.copy(self.prerequisites), settings_values)
             else:
-                self.recipe(self.names, self.prerequisites, settings_values)
+                self.recipe(copy.copy(self.names), copy.copy(self.prerequisites), settings_values)
             assert self.exists(), 'The file %s should exist after the rule ran.' % (', '.join(self.names))
         except:
+            print('Error when building: %s' % (', '.join(self.names)))
             raise

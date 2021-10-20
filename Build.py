@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Callable, Optional, Union
-from pprint import pprint
 
 from pymake.BaseRule import BaseRule
 from pymake.builderrors import DuplicateRuleError, NoRuleError, CyclicGraphError, NoSettingError
@@ -48,7 +47,7 @@ class Build:
 
     def createRule(self, names: Union[str, List[str]], rule_type = BaseRule) -> Rule:
         if type(names) == str:
-            names = [names]
+            names = [str(names)]
 
         new_rule = rule_type(names)
         for name in names:
@@ -143,25 +142,34 @@ class Build:
 
     def build(self, target: str) -> None:
 
+        self._print('b', 'Starting building dependency graph with %s rules.' % (len(self.rules.items())))
+
         self.build_tree = {}
         self.built_rules.clear()
         self.trace=[]
 
+        start_time = datetime.now()
         self._computeBuildSubGraph(target, [])
-
-        if self.print_build:
-            pprint(self.build_tree)
 
         if self.dot_file_name is not None:
             self._drawGraph()
 
+        targets_to_build = 0
         for target, details in self.build_tree.items():
             if target in self.built_rules:
                 continue
             elif not details['needs_to_build']:
                 self.built_rules.add(target)
+            else:
+                targets_to_build += 1
 
         leaves = self._findNextBuildTargets()
+
+        end_time = datetime.now()
+        self._print('g', '    Completed building dependency graph. Took %s' % (end_time-start_time))
+        self._print('b', 'Found %s targets that need building.' % ( targets_to_build))
+
+        total_start_time = datetime.now()
 
         while len(leaves) > 0 :
             self.trace.append([])
@@ -171,15 +179,15 @@ class Build:
                         continue
                     rule = self.rules[leaf]
                     start_time = datetime.now()
-                    self._print('b', 'Starting "%s" at %s' % (rule, start_time))
+                    self._print('b', 'Starting "%s" at %s' % (rule.getTargetStr(), start_time))
                     settings_values = self.settings.getValuesForNames(rule.getSettings())
                     try:
                         rule.build(settings_values)
                         end_time = datetime.now()
-                        self._print('g', '    done "%s" at %s. Took %s' % (rule, end_time, end_time - start_time))
+                        self._print('g', '    done "%s" at %s.\n     Took %s, Total %s' % (rule.getTargetStr(), end_time, end_time - start_time, end_time-total_start_time))
                     except:
                         end_time = datetime.now()
-                        self._print('r', '    failed "%s" at %s. Took %s' % (rule, end_time, end_time - start_time))
+                        self._print('r', '    failed "%s" at %s.\n     Took %s, Total %s' % (rule.getTargetStr(), end_time, end_time - start_time, end_time-total_start_time))
                         raise
                 except:
                     raise
@@ -225,4 +233,5 @@ class Build:
         with open(self.dot_file_name, 'w') as fle:
             for line in lines:
                 fle.write(line+'\n')
+
 
